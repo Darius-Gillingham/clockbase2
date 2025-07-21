@@ -1,3 +1,6 @@
+// File: src/app/auth/SmsB.tsx
+// Commit: Sanitize verification code input before backend call to prevent 400 errors
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -23,10 +26,12 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
     setError(null)
 
     try {
+      const sanitizedCode = code.trim().replace(/\s+/g, '')
+
       const res = await fetch('https://clockbase-sms-production.up.railway.app/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({ phone, code: sanitizedCode }),
       })
 
       const data = await res.json()
