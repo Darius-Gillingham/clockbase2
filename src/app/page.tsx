@@ -1,7 +1,10 @@
+// File: src/app/page.tsx
+// Commit: Replace embedded AuthForm with redirect to new /auth selector
+
 'use client'
 
-import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useSessionContext } from './SessionProvider'
 import { UserIcon } from 'lucide-react'
@@ -9,7 +12,6 @@ import { UserIcon } from 'lucide-react'
 import ShiftControls from './panel/ShiftControls'
 import ShiftStatus from './panel/ShiftStatus'
 import PayrollCalendar from './payroll/PayrollCalendar'
-import AuthForm from '@/app/auth/AuthForm'
 
 type ShiftLog = {
   start?: string
@@ -19,15 +21,19 @@ type ShiftLog = {
 
 export default function HomePage() {
   const { session, setSession } = useSessionContext()
+  const router = useRouter()
   const pathname = usePathname()
   const [error, setError] = useState<string | null>(null)
   const [shiftLog, setShiftLog] = useState<Partial<ShiftLog>>({})
   const [shiftActive, setShiftActive] = useState<boolean>(false)
-  const [isLogin, setIsLogin] = useState<boolean>(true)
   const [showProfilePanel, setShowProfilePanel] = useState(false)
 
   useEffect(() => {
-    if (session) refreshShiftStatus()
+    if (!session) {
+      router.push('/auth')
+    } else {
+      refreshShiftStatus()
+    }
   }, [session])
 
   const refreshShiftStatus = async () => {
@@ -43,20 +49,6 @@ export default function HomePage() {
       .single()
 
     setShiftActive(!!openShift)
-  }
-
-  if (!session) {
-    return (
-      <AuthForm
-        isLogin={isLogin}
-        setIsLogin={setIsLogin}
-        setError={setError}
-        onAuthSuccess={(newSession) => {
-          setSession(newSession)
-          refreshShiftStatus()
-        }}
-      />
-    )
   }
 
   const profileTrigger = (
@@ -90,6 +82,8 @@ export default function HomePage() {
       </div>
     </div>
   )
+
+  if (!session) return null
 
   if (pathname === '/payroll') {
     return (
