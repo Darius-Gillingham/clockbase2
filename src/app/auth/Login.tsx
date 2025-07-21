@@ -1,5 +1,5 @@
 // File: src/app/auth/Login.tsx
-// Commit: Declare onManagerDetected and onSuccessRedirect props to fix usage in parent AuthPage
+// Commit: Enforce strict login gatekeeping with deferred session activation and manager 2FA
 
 'use client'
 
@@ -11,14 +11,10 @@ import { Session } from '@supabase/supabase-js'
 import { useSessionContext } from '@/app/SessionProvider'
 import { useRouter } from 'next/navigation'
 
-type LoginProps = {
-  onManagerDetected: (phone: string) => void
-  onSuccessRedirect: () => void
-}
-
-export default function Login({ onManagerDetected, onSuccessRedirect }: LoginProps) {
+export default function Login() {
   const router = useRouter()
   const { setSession } = useSessionContext()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -32,13 +28,13 @@ export default function Login({ onManagerDetected, onSuccessRedirect }: LoginPro
     setError(null)
     setLoading(true)
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error || !data.session) {
-      setError(error?.message || 'Authentication failed.')
+    if (loginError || !loginData.session) {
+      setError(loginError?.message || 'Authentication failed.')
       setLoading(false)
       return
     }
@@ -50,17 +46,16 @@ export default function Login({ onManagerDetected, onSuccessRedirect }: LoginPro
       .single()
 
     if (company && !companyError) {
-      setPendingSession(data.session)
+      setPendingSession(loginData.session)
       setManagerPhone(company.manager_phone)
       setStep('2fa-send')
-      onManagerDetected(company.manager_phone)
       setLoading(false)
       return
     }
 
-    setSession(data.session)
+    setSession(loginData.session)
+    router.push('/app')
     setLoading(false)
-    onSuccessRedirect()
   }
 
   const handle2FASuccess = () => {
