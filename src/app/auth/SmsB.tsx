@@ -1,5 +1,5 @@
 // File: src/app/auth/SmsB.tsx
-// Commit: Sanitize verification code input before backend call to prevent 400 errors
+// Commit: Match original working logic with dynamic phone and admin login on verify
 
 'use client'
 
@@ -17,8 +17,8 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const router = useRouter()
 
+  const router = useRouter()
   const supabase = createClientComponentClient()
 
   const handleVerify = async () => {

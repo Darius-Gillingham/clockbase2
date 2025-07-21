@@ -1,3 +1,6 @@
+// File: src/app/auth/SmsA.tsx
+// Commit: Match working SMS sender logic with dynamic phone number support
+
 'use client'
 
 import { useState } from 'react'
