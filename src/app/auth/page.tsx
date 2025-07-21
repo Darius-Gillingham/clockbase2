@@ -1,5 +1,5 @@
 // File: src/app/auth/page.tsx
-// Commit: Modular routing of auth flow via mode-switching and imported components
+// Commit: Modular routing of auth flow with fixed props for manager login and 2FA
 
 'use client'
 
@@ -16,31 +16,46 @@ export default function AuthPage() {
   const [mode, setMode] = useState<Mode>('select')
   const [managerPhone, setManagerPhone] = useState('')
 
-  // Triggered by Login.tsx if user is manager
   const handleManagerDetected = (phone: string) => {
     setManagerPhone(phone)
     setMode('2fa-send')
   }
 
+  const handle2FASuccess = () => {
+    window.location.href = '/ManagerPage'
+  }
+
   if (mode === 'creg') return <Creg />
   if (mode === 'ereg') return <Ereg />
-  if (mode === 'login') return (
-    <Login
-      onManagerDetected={handleManagerDetected}
-      onSuccessRedirect={() => window.location.href = '/app'}
-    />
-  )
-  if (mode === '2fa-send') return (
-    <SmsA
-      phone={managerPhone}
-      onSuccess={() => setMode('2fa-verify')}
-    />
-  )
-  if (mode === '2fa-verify') return (
-    <SmsB
-      phone={managerPhone}
-    />
-  )
+  if (mode === 'login') {
+    return (
+      <Login
+        onManagerDetected={handleManagerDetected}
+        onSuccessRedirect={() => {
+          window.location.href = '/app'
+          return ''
+        }}
+      />
+    )
+  }
+
+  if (mode === '2fa-send') {
+    return (
+      <SmsA
+        phone={managerPhone}
+        onSuccess={() => setMode('2fa-verify')}
+      />
+    )
+  }
+
+  if (mode === '2fa-verify') {
+    return (
+      <SmsB
+        phone={managerPhone}
+        onVerified={handle2FASuccess}
+      />
+    )
+  }
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen px-4 py-8 bg-white dark:bg-gray-900">

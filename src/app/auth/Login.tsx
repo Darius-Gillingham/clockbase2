@@ -1,95 +1,117 @@
 // File: src/app/auth/Login.tsx
-// Commit: Modular login component with manager detection callback
+// Commit: Declare onManagerDetected and onSuccessRedirect props to fix usage in parent AuthPage
 
 'use client'
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import SmsA from './SmsA'
+import SmsB from './SmsB'
+import { Session } from '@supabase/supabase-js'
+import { useSessionContext } from '@/app/SessionProvider'
+import { useRouter } from 'next/navigation'
 
-interface LoginProps {
+type LoginProps = {
   onManagerDetected: (phone: string) => void
   onSuccessRedirect: () => void
 }
 
 export default function Login({ onManagerDetected, onSuccessRedirect }: LoginProps) {
+  const router = useRouter()
+  const { setSession } = useSessionContext()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const [step, setStep] = useState<'login' | '2fa-send' | '2fa-verify'>('login')
+  const [pendingSession, setPendingSession] = useState<Session | null>(null)
+  const [managerPhone, setManagerPhone] = useState<string>('')
+
+  const handleLogin = async () => {
     setError(null)
     setLoading(true)
 
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-    if (loginError || !data.session) {
-      setError(loginError?.message || 'Login failed')
+    if (error || !data.session) {
+      setError(error?.message || 'Authentication failed.')
       setLoading(false)
       return
     }
 
-    const user = data.session.user
-
-    // Check if user is a manager
     const { data: company, error: companyError } = await supabase
       .from('companies')
-      .select('manager_phone')
-      .eq('manager_email', user.email)
+      .select('manager_email, manager_phone')
+      .eq('manager_email', email)
       .single()
 
-    if (companyError && companyError.code !== 'PGRST116') {
-      setError('Error checking manager status')
+    if (company && !companyError) {
+      setPendingSession(data.session)
+      setManagerPhone(company.manager_phone)
+      setStep('2fa-send')
+      onManagerDetected(company.manager_phone)
       setLoading(false)
       return
     }
 
-    const isManager = !!company
-    const phone = company?.manager_phone
-
-    if (!isManager || !phone) {
-      onSuccessRedirect()
-    } else {
-      onManagerDetected(phone)
-    }
-
+    setSession(data.session)
     setLoading(false)
+    onSuccessRedirect()
+  }
+
+  const handle2FASuccess = () => {
+    if (pendingSession) {
+      setSession(pendingSession)
+      router.push('/manager')
+    }
   }
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen px-4 py-8 bg-white dark:bg-gray-900">
-      <form
-        onSubmit={handleLogin}
-        className="w-full max-w-sm flex flex-col gap-4 bg-white dark:bg-neutral-900 p-6 rounded shadow"
-      >
-        <h1 className="text-2xl font-semibold text-center mb-2">Login</h1>
-
-        <input
-          type="email"
-          placeholder="Email"
-          className="border px-3 py-2 rounded"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="border px-3 py-2 rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+    <div className="w-full max-w-sm mx-auto space-y-6">
+      {step === 'login' && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleLogin()
+          }}
+          className="space-y-4"
         >
-          {loading ? 'Checking...' : 'Login'}
-        </button>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-      </form>
-    </main>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full px-4 py-2 border rounded"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full px-4 py-2 border rounded"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+        </form>
+      )}
+
+      {step === '2fa-send' && (
+        <SmsA onSuccess={() => setStep('2fa-verify')} phone={managerPhone} />
+      )}
+
+      {step === '2fa-verify' && (
+        <SmsB phone={managerPhone} onVerified={handle2FASuccess} />
+      )}
+    </div>
   )
 }

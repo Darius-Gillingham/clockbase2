@@ -1,17 +1,16 @@
 // File: src/app/auth/SmsA.tsx
-// Commit: Dynamic SMS send using company manager phone number
+// Commit: DFA conversion for SMS 2FA sender component with proper prop typing
 
 'use client'
 
 import { useState } from 'react'
 
-export default function SmsA({
-  phone,
-  onSuccess,
-}: {
+type SmsAProps = {
   phone: string
-  onSuccess: (phone: string) => void
-}) {
+  onSuccess: () => void
+}
+
+export default function SmsA({ phone, onSuccess }: SmsAProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,7 +29,7 @@ export default function SmsA({
 
       if (!res.ok) throw new Error(data.error || 'Failed to send code')
 
-      onSuccess(phone)
+      onSuccess()
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
     } finally {
