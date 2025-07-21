@@ -1,5 +1,5 @@
 // File: src/app/auth/page.tsx
-// Commit: Render Creg, Ereg, or Login as components inside panel selector
+// Commit: Modular routing of auth flow via mode-switching and imported components
 
 'use client'
 
@@ -7,15 +7,40 @@ import { useState } from 'react'
 import Creg from './Creg'
 import Ereg from './Ereg'
 import Login from './Login'
+import SmsA from './SmsA'
+import SmsB from './SmsB'
 
-type Mode = 'select' | 'creg' | 'ereg' | 'login'
+type Mode = 'select' | 'login' | 'creg' | 'ereg' | '2fa-send' | '2fa-verify'
 
 export default function AuthPage() {
   const [mode, setMode] = useState<Mode>('select')
+  const [managerPhone, setManagerPhone] = useState('')
+
+  // Triggered by Login.tsx if user is manager
+  const handleManagerDetected = (phone: string) => {
+    setManagerPhone(phone)
+    setMode('2fa-send')
+  }
 
   if (mode === 'creg') return <Creg />
   if (mode === 'ereg') return <Ereg />
-  if (mode === 'login') return <Login />
+  if (mode === 'login') return (
+    <Login
+      onManagerDetected={handleManagerDetected}
+      onSuccessRedirect={() => window.location.href = '/app'}
+    />
+  )
+  if (mode === '2fa-send') return (
+    <SmsA
+      phone={managerPhone}
+      onSuccess={() => setMode('2fa-verify')}
+    />
+  )
+  if (mode === '2fa-verify') return (
+    <SmsB
+      phone={managerPhone}
+    />
+  )
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen px-4 py-8 bg-white dark:bg-gray-900">

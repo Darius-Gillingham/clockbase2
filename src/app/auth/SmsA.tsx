@@ -1,4 +1,4 @@
-// File: src/app/sms/SmsA.tsx
+// File: src/app/auth/SmsA.tsx
 // Commit: Dynamic SMS send using company manager phone number
 
 'use client'
