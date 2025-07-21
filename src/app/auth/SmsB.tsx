@@ -1,9 +1,8 @@
-// File: src/app/auth/SmsB.tsx
-// Commit: DFA conversion for SMS verification with callback on success
-
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 type SmsBProps = {
   phone: string
@@ -15,6 +14,9 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const router = useRouter()
+
+  const supabase = createClientComponentClient()
 
   const handleVerify = async () => {
     setLoading(true)
@@ -30,6 +32,14 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Invalid code')
 
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: 'dariusgillingham2@gmail.com',
+        password: process.env.NEXT_PUBLIC_SUPABASE_ADMIN_PASSWORD!,
+      })
+
+      if (loginError) throw new Error('Supabase login failed')
+
+      localStorage.setItem('isAdminVerified', 'true')
       setSuccess(true)
       onVerified()
     } catch (err: any) {
@@ -41,7 +51,7 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
 
   useEffect(() => {
     if (success) {
-      // Optional visual delay before redirection handled by parent
+      // routed by parent
     }
   }, [success])
 

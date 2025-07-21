@@ -1,6 +1,3 @@
-// File: src/app/auth/SmsA.tsx
-// Commit: DFA conversion for SMS 2FA sender component with proper prop typing
-
 'use client'
 
 import { useState } from 'react'
@@ -39,9 +36,7 @@ export default function SmsA({ phone, onSuccess }: SmsAProps) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-center text-black dark:text-white">
-        Verify your phone
-      </h2>
+      <h2 className="text-xl font-semibold text-center text-black dark:text-white">Verify your phone</h2>
       <button
         onClick={handleSendCode}
         disabled={loading}

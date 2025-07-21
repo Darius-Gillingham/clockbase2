@@ -1,3 +1,6 @@
+// File: src/app/SessionProvider.tsx
+// Commit: Delay session activation for managers until 2FA verified via localStorage key
+
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
@@ -11,7 +14,7 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType>({
   session: null,
-  setSession: () => {}
+  setSession: () => {},
 })
 
 export function useSessionContext() {
@@ -26,22 +29,65 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const [session, setSession] = useState<Session | null>(null)
 
   useEffect(() => {
-    // Initial session fetch on load
     const initializeSession = async () => {
       const { data, error } = await supabase.auth.getSession()
-      if (!error) {
-        setSession(data.session)
+      const session = data.session
+
+      if (!session || error) return
+
+      const email = session.user.email ?? ''
+
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('manager_email')
+        .eq('manager_email', email)
+        .single()
+
+      const verifiedEmail = localStorage.getItem('verifiedManager') ?? ''
+
+      if (company && !companyError) {
+        if (verifiedEmail === email) {
+          setSession(session)
+        } else {
+          // Don't setSession yet — waiting on 2FA
+        }
+      } else {
+        setSession(session)
       }
     }
 
     initializeSession()
 
-    // Subscribe to auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      setSession(newSession)
+      const email = newSession?.user.email ?? ''
+      const verifiedEmail = localStorage.getItem('verifiedManager') ?? ''
+
+      if (!newSession) {
+        setSession(null)
+        return
+      }
+
+      const handleSession = async () => {
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('manager_email')
+          .eq('manager_email', email)
+          .single()
+
+        if (company && !companyError) {
+          if (verifiedEmail === email) {
+            setSession(newSession)
+          } else {
+            // Hold session until verified
+          }
+        } else {
+          setSession(newSession)
+        }
+      }
+
+      handleSession()
     })
 
-    // Clean up subscription on unmount
     return () => {
       listener.subscription.unsubscribe()
     }
