@@ -1,30 +1,39 @@
 // File: src/app/auth/page.tsx
-// Commit: Replace AuthForm with 3-panel selector (Creg, Ereg, Login) without descriptions
+// Commit: Render Creg, Ereg, or Login as components inside panel selector
 
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import Creg from './Creg'
+import Ereg from './Ereg'
+import Login from './Login'
+
+type Mode = 'select' | 'creg' | 'ereg' | 'login'
 
 export default function AuthPage() {
-  const router = useRouter()
+  const [mode, setMode] = useState<Mode>('select')
+
+  if (mode === 'creg') return <Creg />
+  if (mode === 'ereg') return <Ereg />
+  if (mode === 'login') return <Login />
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen px-4 py-8 bg-white dark:bg-gray-900">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl">
         <button
-          onClick={() => router.push('/auth/Creg')}
+          onClick={() => setMode('creg')}
           className="p-8 border rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition text-lg font-semibold"
         >
           Register Company
         </button>
         <button
-          onClick={() => router.push('/auth/Ereg')}
+          onClick={() => setMode('ereg')}
           className="p-8 border rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition text-lg font-semibold"
         >
           Register as Employee
         </button>
         <button
-          onClick={() => router.push('/auth/Login')}
+          onClick={() => setMode('login')}
           className="p-8 border rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition text-lg font-semibold"
         >
           Login
