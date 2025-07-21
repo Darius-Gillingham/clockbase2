@@ -1,5 +1,5 @@
 // File: src/app/auth/Login.tsx
-// Commit: Enforce strict login gatekeeping with deferred session activation and manager 2FA
+// Commit: Add prop types for onManagerDetected and onSuccessRedirect
 
 'use client'
 
@@ -11,10 +11,17 @@ import { Session } from '@supabase/supabase-js'
 import { useSessionContext } from '@/app/SessionProvider'
 import { useRouter } from 'next/navigation'
 
-export default function Login() {
+type LoginProps = {
+  onManagerDetected: (phone: string) => void
+  onSuccessRedirect: () => void
+}
+
+export default function Login({
+  onManagerDetected,
+  onSuccessRedirect,
+}: LoginProps) {
   const router = useRouter()
   const { setSession } = useSessionContext()
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -28,13 +35,13 @@ export default function Login() {
     setError(null)
     setLoading(true)
 
-    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (loginError || !loginData.session) {
-      setError(loginError?.message || 'Authentication failed.')
+    if (error || !data.session) {
+      setError(error?.message || 'Authentication failed.')
       setLoading(false)
       return
     }
@@ -46,16 +53,17 @@ export default function Login() {
       .single()
 
     if (company && !companyError) {
-      setPendingSession(loginData.session)
+      setPendingSession(data.session)
       setManagerPhone(company.manager_phone)
+      onManagerDetected(company.manager_phone)
       setStep('2fa-send')
       setLoading(false)
       return
     }
 
-    setSession(loginData.session)
-    router.push('/app')
+    setSession(data.session)
     setLoading(false)
+    onSuccessRedirect()
   }
 
   const handle2FASuccess = () => {
