@@ -1,7 +1,10 @@
+// File: src/app/ManagerPage.tsx
+// Commit: Remove embedded AuthForm and redirect to /auth for login
+
 'use client'
 
 import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useSessionContext } from './SessionProvider'
 import { UserIcon } from 'lucide-react'
@@ -9,7 +12,6 @@ import { UserIcon } from 'lucide-react'
 import ShiftControls from './panel/ShiftControls'
 import ShiftStatus from './panel/ShiftStatus'
 import PayrollCalendar from './payroll/PayrollCalendar'
-import AuthForm from '@/app/auth/AuthForm'
 
 type ShiftLog = {
   start?: string
@@ -20,14 +22,18 @@ type ShiftLog = {
 export default function ManagerPage() {
   const { session, setSession } = useSessionContext()
   const pathname = usePathname()
+  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
-  const [shiftLog, setShiftLog] = useState<Partial<ShiftLog>>({}) // reuse log pattern
+  const [shiftLog, setShiftLog] = useState<Partial<ShiftLog>>({})
   const [shiftActive, setShiftActive] = useState<boolean>(false)
-  const [isLogin, setIsLogin] = useState<boolean>(true)
   const [showProfilePanel, setShowProfilePanel] = useState(false)
 
   useEffect(() => {
-    if (session) refreshShiftStatus()
+    if (!session) {
+      router.push('/auth')
+    } else {
+      refreshShiftStatus()
+    }
   }, [session])
 
   const refreshShiftStatus = async () => {
@@ -43,20 +49,6 @@ export default function ManagerPage() {
       .single()
 
     setShiftActive(!!openShift)
-  }
-
-  if (!session) {
-    return (
-      <AuthForm
-        isLogin={isLogin}
-        setIsLogin={setIsLogin}
-        setError={setError}
-        onAuthSuccess={(newSession) => {
-          setSession(newSession)
-          refreshShiftStatus()
-        }}
-      />
-    )
   }
 
   const profileTrigger = (
@@ -90,6 +82,8 @@ export default function ManagerPage() {
       </div>
     </div>
   )
+
+  if (!session) return null
 
   if (pathname === '/payroll') {
     return (
