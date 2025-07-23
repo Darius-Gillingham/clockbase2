@@ -1,5 +1,5 @@
 // File: src/app/auth/SmsB.tsx
-// Commit: Store verified manager email in localStorage to activate session context
+// Commit: Redirect to home page on 2FA success; skip unused callback routing
 
 'use client'
 
@@ -11,7 +11,7 @@ type SmsBProps = {
   onVerified: () => void
 }
 
-export default function SmsB({ phone, onVerified }: SmsBProps) {
+export default function SmsB({ phone }: SmsBProps) {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,22 +35,15 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Invalid code')
 
-      // Store verified phone to unlock manager session
       localStorage.setItem('verifiedManager', phone)
       setSuccess(true)
-      onVerified()
+      router.push('/')
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
     } finally {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (success) {
-      // routed by parent
-    }
-  }, [success])
 
   return (
     <div className="space-y-4">
