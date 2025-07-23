@@ -1,5 +1,5 @@
 // File: src/app/auth/page.tsx
-// Commit: Add session redirect to prevent login loop when user is already authenticated
+// Commit: Add 2FA mode flag to allow session temporarily during verification window
 
 'use client'
 
@@ -29,11 +29,13 @@ export default function AuthPage() {
   }, [session])
 
   const handleManagerDetected = (phone: string) => {
+    localStorage.setItem('in2FAMode', 'true')
     setManagerPhone(phone)
     setMode('2fa-send')
   }
 
   const handle2FASuccess = () => {
+    localStorage.removeItem('in2FAMode')
     window.location.href = '/'
   }
 

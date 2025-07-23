@@ -1,5 +1,5 @@
 // File: src/app/SessionProvider.tsx
-// Commit: Allow session on /auth route even before 2FA to prevent redirect loop; keep gating for all others
+// Commit: Allow temporary session unlock if in2FAMode is true during SMS verification flow
 
 'use client'
 
@@ -38,6 +38,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
       const email = session.user.email ?? ''
       const verifiedEmail = localStorage.getItem('verifiedManager') ?? ''
+      const in2FAMode = localStorage.getItem('in2FAMode') === 'true'
 
       const { data: company, error: companyError } = await supabase
         .from('companies')
@@ -45,17 +46,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
         .eq('manager_email', email)
         .single()
 
-      // ✅ Allow access during /auth regardless of 2FA state
-      if (pathname === '/auth') {
-        setSession(session)
-        return
-      }
-
       if (company && !companyError) {
-        if (verifiedEmail === email) {
+        if (verifiedEmail === email || in2FAMode) {
           setSession(session)
-        } else {
-          return
         }
       } else {
         setSession(session)
@@ -67,6 +60,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       const email = newSession?.user.email ?? ''
       const verifiedEmail = localStorage.getItem('verifiedManager') ?? ''
+      const in2FAMode = localStorage.getItem('in2FAMode') === 'true'
 
       if (!newSession) {
         setSession(null)
@@ -80,16 +74,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
           .eq('manager_email', email)
           .single()
 
-        if (pathname === '/auth') {
-          setSession(newSession)
-          return
-        }
-
         if (company && !companyError) {
-          if (verifiedEmail === email) {
+          if (verifiedEmail === email || in2FAMode) {
             setSession(newSession)
-          } else {
-            return
           }
         } else {
           setSession(newSession)
