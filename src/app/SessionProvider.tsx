@@ -1,5 +1,5 @@
 // File: src/app/SessionProvider.tsx
-// Commit: Fix hydration timing to avoid redirect loop by deferring localStorage read
+// Commit: Enforce 2FA gate only for managers, allow regular users immediately without delay or loop
 
 'use client'
 
@@ -32,10 +32,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
     const initializeSession = async () => {
       const { data, error } = await supabase.auth.getSession()
       const session = data.session
-
       if (!session || error) return
 
       const email = session.user.email ?? ''
+      const verifiedEmail = localStorage.getItem('verifiedManager') ?? ''
 
       const { data: company, error: companyError } = await supabase
         .from('companies')
@@ -43,51 +43,50 @@ export function SessionProvider({ children }: SessionProviderProps) {
         .eq('manager_email', email)
         .single()
 
-      // Defer reading localStorage to ensure hydration has completed
-      requestAnimationFrame(() => {
-        const verifiedEmail = localStorage.getItem('verifiedManager') ?? ''
-
-        if (company && !companyError) {
-          if (verifiedEmail === email) {
-            setSession(session)
-          }
-        } else {
+      // ✅ Manager requires verification
+      if (company && !companyError) {
+        if (verifiedEmail === email) {
           setSession(session)
+        } else {
+          // ❌ Manager not yet 2FA verified
+          return
         }
-      })
+      } else {
+        // ✅ Regular user, allow immediately
+        setSession(session)
+      }
     }
 
     initializeSession()
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       const email = newSession?.user.email ?? ''
+      const verifiedEmail = localStorage.getItem('verifiedManager') ?? ''
 
-      requestAnimationFrame(() => {
-        const verifiedEmail = localStorage.getItem('verifiedManager') ?? ''
+      if (!newSession) {
+        setSession(null)
+        return
+      }
 
-        if (!newSession) {
-          setSession(null)
-          return
-        }
+      const handleSession = async () => {
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('manager_email')
+          .eq('manager_email', email)
+          .single()
 
-        const handleSession = async () => {
-          const { data: company, error: companyError } = await supabase
-            .from('companies')
-            .select('manager_email')
-            .eq('manager_email', email)
-            .single()
-
-          if (company && !companyError) {
-            if (verifiedEmail === email) {
-              setSession(newSession)
-            }
-          } else {
+        if (company && !companyError) {
+          if (verifiedEmail === email) {
             setSession(newSession)
+          } else {
+            return
           }
+        } else {
+          setSession(newSession)
         }
+      }
 
-        handleSession()
-      })
+      handleSession()
     })
 
     return () => {
