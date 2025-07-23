@@ -1,5 +1,5 @@
 // File: src/app/auth/SmsB.tsx
-// Commit: Remove Supabase login and rely solely on SMS code verification for admin access
+// Commit: Store verified manager email in localStorage to activate session context
 
 'use client'
 
@@ -35,8 +35,8 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Invalid code')
 
-      // Skip Supabase login – use verified code as proof of admin access
-      localStorage.setItem('isAdminVerified', 'true')
+      // Store verified phone to unlock manager session
+      localStorage.setItem('verifiedManager', phone)
       setSuccess(true)
       onVerified()
     } catch (err: any) {
