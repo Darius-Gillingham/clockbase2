@@ -1,6 +1,12 @@
+// File: src/app/auth/page.tsx
+// Commit: Add session redirect to prevent login loop when user is already authenticated
+
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSessionContext } from '../SessionProvider'
+
 import Creg from './Creg'
 import Ereg from './Ereg'
 import Login from './Login'
@@ -10,8 +16,17 @@ import SmsB from './SmsB'
 type Mode = 'select' | 'login' | 'creg' | 'ereg' | '2fa-send' | '2fa-verify'
 
 export default function AuthPage() {
+  const { session } = useSessionContext()
+  const router = useRouter()
+
   const [mode, setMode] = useState<Mode>('select')
   const [managerPhone, setManagerPhone] = useState('')
+
+  useEffect(() => {
+    if (session) {
+      router.push('/')
+    }
+  }, [session])
 
   const handleManagerDetected = (phone: string) => {
     setManagerPhone(phone)
@@ -19,7 +34,7 @@ export default function AuthPage() {
   }
 
   const handle2FASuccess = () => {
-    window.location.href = '/ManagerPage'
+    window.location.href = '/'
   }
 
   const renderMain = () => {
