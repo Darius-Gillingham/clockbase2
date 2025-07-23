@@ -1,11 +1,12 @@
 // File: src/app/SessionProvider.tsx
-// Commit: Enforce 2FA gate only for managers, allow regular users immediately without delay or loop
+// Commit: Allow session on /auth route even before 2FA to prevent redirect loop; keep gating for all others
 
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { Session } from '@supabase/supabase-js'
+import { usePathname } from 'next/navigation'
 
 interface SessionContextType {
   session: Session | null
@@ -27,6 +28,7 @@ interface SessionProviderProps {
 
 export function SessionProvider({ children }: SessionProviderProps) {
   const [session, setSession] = useState<Session | null>(null)
+  const pathname = usePathname()
 
   useEffect(() => {
     const initializeSession = async () => {
@@ -43,16 +45,19 @@ export function SessionProvider({ children }: SessionProviderProps) {
         .eq('manager_email', email)
         .single()
 
-      // ✅ Manager requires verification
+      // ✅ Allow access during /auth regardless of 2FA state
+      if (pathname === '/auth') {
+        setSession(session)
+        return
+      }
+
       if (company && !companyError) {
         if (verifiedEmail === email) {
           setSession(session)
         } else {
-          // ❌ Manager not yet 2FA verified
           return
         }
       } else {
-        // ✅ Regular user, allow immediately
         setSession(session)
       }
     }
@@ -75,6 +80,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
           .eq('manager_email', email)
           .single()
 
+        if (pathname === '/auth') {
+          setSession(newSession)
+          return
+        }
+
         if (company && !companyError) {
           if (verifiedEmail === email) {
             setSession(newSession)
@@ -92,7 +102,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     return () => {
       listener.subscription.unsubscribe()
     }
-  }, [])
+  }, [pathname])
 
   return (
     <SessionContext.Provider value={{ session, setSession }}>
