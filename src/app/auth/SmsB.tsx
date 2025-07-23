@@ -1,11 +1,10 @@
 // File: src/app/auth/SmsB.tsx
-// Commit: Match original working logic with dynamic phone and admin login on verify
+// Commit: Remove Supabase login and rely solely on SMS code verification for admin access
 
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 type SmsBProps = {
   phone: string
@@ -19,7 +18,6 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
   const [success, setSuccess] = useState(false)
 
   const router = useRouter()
-  const supabase = createClientComponentClient()
 
   const handleVerify = async () => {
     setLoading(true)
@@ -37,13 +35,7 @@ export default function SmsB({ phone, onVerified }: SmsBProps) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Invalid code')
 
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: 'dariusgillingham2@gmail.com',
-        password: process.env.NEXT_PUBLIC_SUPABASE_ADMIN_PASSWORD!,
-      })
-
-      if (loginError) throw new Error('Supabase login failed')
-
+      // Skip Supabase login – use verified code as proof of admin access
       localStorage.setItem('isAdminVerified', 'true')
       setSuccess(true)
       onVerified()
