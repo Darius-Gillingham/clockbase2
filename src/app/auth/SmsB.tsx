@@ -1,9 +1,9 @@
 // File: src/app/auth/SmsB.tsx
-// Commit: Redirect to home page on 2FA success; skip unused callback routing
+// Commit: Force full reload after setting verifiedManager to reinitialize session context
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type SmsBProps = {
@@ -37,7 +37,7 @@ export default function SmsB({ phone }: SmsBProps) {
 
       localStorage.setItem('verifiedManager', phone)
       setSuccess(true)
-      router.push('/')
+      location.href = '/' // force reload to reinit session context
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
     } finally {
