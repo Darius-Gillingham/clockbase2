@@ -1,5 +1,5 @@
 // File: src/app/page.tsx
-// Commit: Replace embedded AuthForm with redirect to new /auth selector
+// Commit: Switch shift state tracking from legacy Shifts table to geo_shifts
 
 'use client'
 
@@ -40,9 +40,9 @@ export default function HomePage() {
     if (!session?.user?.id) return
 
     const { data: openShift } = await supabase
-      .from('Shifts')
+      .from('geo_shifts')
       .select('*')
-      .eq('User_ID', session.user.id)
+      .eq('user_id', session.user.id)
       .eq('shift_active', true)
       .order('shift_start', { ascending: false })
       .limit(1)
