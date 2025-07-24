@@ -38,8 +38,20 @@ export default function ShiftControls({
   const buttonClass =
     'w-full bg-blue-600 border-2 border-purple-600 text-white py-2 rounded hover:bg-blue-700 transition'
 
+  const getGeoPosition = (): Promise<GeolocationPosition> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported.'))
+      } else {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000
+        })
+      }
+    })
+  }
+
   const handleStartShift = async () => {
-    console.log('Start Shift button clicked')
     setLoading(true)
     setError(null)
 
@@ -49,16 +61,27 @@ export default function ShiftControls({
       return
     }
 
+    let coords: GeolocationCoordinates
+    try {
+      const pos = await getGeoPosition()
+      coords = pos.coords
+    } catch (err) {
+      setError('Location permission is required to start a shift.')
+      setLoading(false)
+      return
+    }
+
     const userId = session.user.id
     const now = new Date().toISOString()
 
-    const { error: insertError } = await supabase.from('Shifts').insert([
+    const { error: insertError } = await supabase.from('geo_shifts').insert([
       {
-        User_ID: userId,
+        user_id: userId,
         shift_start: now,
-        shift_active: true,
-        sent: false,
-      },
+        shift_start_lat: coords.latitude,
+        shift_start_lng: coords.longitude,
+        shift_active: true
+      }
     ])
 
     if (insertError) {
@@ -73,7 +96,6 @@ export default function ShiftControls({
   }
 
   const handleEndShift = async () => {
-    console.log('End Shift button clicked')
     setLoading(true)
     setError(null)
 
@@ -83,19 +105,28 @@ export default function ShiftControls({
       return
     }
 
+    let coords: GeolocationCoordinates
+    try {
+      const pos = await getGeoPosition()
+      coords = pos.coords
+    } catch (err) {
+      setError('Location permission is required to end a shift.')
+      setLoading(false)
+      return
+    }
+
     const userId = session.user.id
 
     const { data: openShift, error: fetchError } = await supabase
-      .from('Shifts')
+      .from('geo_shifts')
       .select('*')
-      .eq('User_ID', userId)
+      .eq('user_id', userId)
       .eq('shift_active', true)
       .order('shift_start', { ascending: false })
       .limit(1)
       .single()
 
     if (fetchError || !openShift) {
-      console.error('Fetch error:', fetchError)
       setError('No active shift to end.')
       setLoading(false)
       return
@@ -104,53 +135,27 @@ export default function ShiftControls({
     const endTime = new Date()
     const shiftStart = new Date(openShift.shift_start)
     const range = `${shiftStart.toTimeString().slice(0, 5)}-${endTime.toTimeString().slice(0, 5)}`
-    const shiftDate = shiftStart.toISOString().split('T')[0]
-    const filename = `${userId}-${shiftDate}.json`
 
     const { error: updateError } = await supabase
-      .from('Shifts')
+      .from('geo_shifts')
       .update({
         shift_end: endTime.toISOString(),
-        shift_active: false,
-        notes: range,
+        shift_end_lat: coords.latitude,
+        shift_end_lng: coords.longitude,
+        shift_active: false
       })
       .eq('id', openShift.id)
 
-    onShiftLogUpdate({ start: openShift.shift_start, end: endTime.toISOString() })
-
-    const updatedJSON: ShiftLog[] = []
-
-    const { data: fileExists } = await supabase.storage
-      .from('shift-json')
-      .list('', { search: filename })
-
-    if (fileExists?.length) {
-      const { data: existingFile } = await supabase.storage
-        .from('shift-json')
-        .download(filename)
-
-      const text = await existingFile?.text()
-      if (text) {
-        try {
-          const existing: ShiftLog[] = JSON.parse(text)
-          updatedJSON.push(...existing)
-        } catch {
-          setError('Failed to parse existing JSON.')
-        }
-      }
-    }
-
-    updatedJSON.push({
-      start: shiftStart.toISOString(),
-      end: endTime.toISOString(),
-      range,
-    })
-
-    await supabase.storage
-      .from('shift-json')
-      .upload(filename, new Blob([JSON.stringify(updatedJSON)], { type: 'application/json' }), {
-        upsert: true,
+    if (updateError) {
+      console.error('Update error:', updateError)
+      setError(updateError.message)
+    } else {
+      onShiftLogUpdate({
+        start: openShift.shift_start,
+        end: endTime.toISOString(),
+        range
       })
+    }
 
     await onShiftStatusRefresh()
     setLoading(false)
